@@ -17,13 +17,13 @@ class PostPagesTests(TestCase):
         super().setUpClass()
         cls.user = User.objects.create_user(username='Vasya')
         cls.group = Group.objects.create(
-                        title='Тестовая группа',
-                        slug='test-slug'
-                    )
+            title='Тестовая группа',
+            slug='test-slug'
+        )
         cls.another_group = Group.objects.create(
-                        title='Тестовая группа2',
-                        slug='test-slug2'
-                    )
+            title='Тестовая группа2',
+            slug='test-slug2'
+        )
         for test_post_id in range(TEST_POSTS_COUNT):
             Post.objects.create(
                 text='Текст поста',
