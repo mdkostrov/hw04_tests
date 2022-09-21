@@ -11,7 +11,7 @@ User = get_user_model()
 TEST_POSTS_COUNT = 15
 
 
-class PostPagesTests(TestCase):
+class PostViewTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -24,13 +24,13 @@ class PostPagesTests(TestCase):
             title='Тестовая группа2',
             slug='test-slug2'
         )
-        for test_post_id in range(TEST_POSTS_COUNT):
-            Post.objects.create(
-                text='Текст поста',
+        Post.objects.bulk_create(
+            Post(
                 author=cls.user,
-                group=cls.group,
-                id=str(test_post_id)
-            )
+                text=f'Пост №{i}',
+                id=i, group=cls.group
+            ) for i in range(1, TEST_POSTS_COUNT + 1)
+        )
 
     def setUp(self):
         self.authorized_client = Client()

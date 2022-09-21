@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 
@@ -36,20 +38,20 @@ class PostURLTests(TestCase):
         пользователя и автора поста
         """
         urls_clients_statuses = [
-            ['/', self.authorized_client, 200],
-            ['/', self.guest_client, 200],
-            ['/create/', self.authorized_client, 200],
-            ['/create/', self.guest_client, 302],
-            ['/group/test-slug/', self.authorized_client, 200],
-            ['/group/test-slug/', self.guest_client, 200],
-            ['/profile/author/', self.authorized_client, 200],
-            ['/profile/author/', self.guest_client, 200],
-            ['/posts/1/', self.authorized_client, 200],
-            ['/posts/1/', self.guest_client, 200],
-            ['/posts/1/edit/', self.authorized_client, 302],
-            ['/posts/1/edit/', self.guest_client, 302],
-            ['/posts/1/edit/', self.client_author, 200],
-            ['/unexisting/', self.guest_client, 404],
+            ['/', self.authorized_client, HTTPStatus.OK],
+            ['/', self.guest_client, HTTPStatus.OK],
+            ['/create/', self.authorized_client, HTTPStatus.OK],
+            ['/create/', self.guest_client, HTTPStatus.FOUND],
+            ['/group/test-slug/', self.authorized_client, HTTPStatus.OK],
+            ['/group/test-slug/', self.guest_client, HTTPStatus.OK],
+            ['/profile/author/', self.authorized_client, HTTPStatus.OK],
+            ['/profile/author/', self.guest_client, HTTPStatus.OK],
+            ['/posts/1/', self.authorized_client, HTTPStatus.OK],
+            ['/posts/1/', self.guest_client, HTTPStatus.OK],
+            ['/posts/1/edit/', self.authorized_client, HTTPStatus.FOUND],
+            ['/posts/1/edit/', self.guest_client, HTTPStatus.FOUND],
+            ['/posts/1/edit/', self.client_author, HTTPStatus.OK],
+            ['/unexisting/', self.guest_client, HTTPStatus.NOT_FOUND],
         ]
         for address, client, status in urls_clients_statuses:
             with self.subTest(address=address, client=client, status=status):
