@@ -42,9 +42,59 @@ class Post(models.Model):
         verbose_name='Название группы',
         help_text='Группа, к которой будет относиться пост'
     )
+    image = models.ImageField(
+        'Картинка',
+        upload_to='posts/',
+        blank=True
+    )
 
     def __str__(self) -> str:
         return f'{self.text[:POST_PREVIEW]}'
 
     class Meta:
         ordering = ['-pub_date']
+
+
+class Comment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Комментируемый пост',
+        help_text='Пост, к которому будет относиться комментарий'
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор комментария',
+    )
+    text = models.TextField(
+        verbose_name='Текст комментария',
+        help_text='Введите текст комментария'
+    )
+    created = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата и время комментария'
+    )
+
+    def __str__(self) -> str:
+        return f'{self.text[:POST_PREVIEW]}'
+
+    class Meta:
+        ordering = ['-created']
+
+
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+        verbose_name='Подписчик',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following',
+        verbose_name='Подписчик',
+    )

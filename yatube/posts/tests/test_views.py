@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 from django import forms
 
-from posts.models import Group, Post
+from posts.models import Follow, Group, Post
 from posts.views import POSTS_PER_PAGE
 
 User = get_user_model()
@@ -35,6 +36,7 @@ class PostViewTests(TestCase):
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        cache.clear()
 
     def test_pages_use_correct_template(self):
         """URL-адрес (namespace:name) использует соответствующий шаблон."""
@@ -55,7 +57,7 @@ class PostViewTests(TestCase):
                 'posts/create_post.html'
         }
         for reverse_name, template in reverse_names_templates.items():
-            with self.subTest(reverse_name=reverse_name):
+            with self.subTest(reverse_name=reverse_name, template=template):
                 response = self.authorized_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
@@ -190,3 +192,93 @@ class PostViewTests(TestCase):
             response_another_group.context['page_obj'].object_list
         )
         self.assertNotIn(post_group, another_group_context)
+
+    def test_index_cache(self):
+        """
+        При удалении записи из базы, она остаётся в response.content
+        главной страницы до тех пор, пока кэш не будет очищен принудительно.
+        """
+        post = Post.objects.create(
+            text='Кешированный пост',
+            author=self.user
+        )
+        content_before = self.authorized_client.get(
+            reverse('posts:index')
+        ).content
+        post.delete()
+        content_after_delete = self.authorized_client.get(
+            reverse('posts:index')
+        ).content
+        self.assertEqual(content_before, content_after_delete)
+        cache.clear()
+        content_after_cache_clear = self.authorized_client.get(
+            reverse('posts:index')
+        ).content
+        self.assertNotEqual(content_before, content_after_cache_clear)
+
+
+class FollowingTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.author = User.objects.create_user(username='Автор')
+        cls.follower = User.objects.create_user(username='Подписчик')
+
+    def setUp(self):
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.follower)
+        self.client_author = Client()
+        self.client_author.force_login(self.author)
+
+    def test_authorized_follow_unfollow(self):
+        """
+        Авторизованный пользователь может подписываться на других
+        пользователей и удалять их из подписок.
+        """
+        follow_count = Follow.objects.count()
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': self.author.username}
+            )
+        )
+        follow_object = Follow.objects.first()
+        self.assertEqual(Follow.objects.count(), follow_count + 1)
+        self.assertEqual(follow_object.author, self.author)
+        self.assertEqual(follow_object.user, self.follower)
+        self.authorized_client.get(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.author.username}
+            )
+        )
+        self.assertEqual(Follow.objects.count(), follow_count)
+        self.assertFalse(
+            Follow.objects.filter(
+                user=self.follower,
+                author=self.author
+            ).exists()
+        )
+
+    def test_post_for_followers(self):
+        """
+        Новая запись пользователя появляется в ленте тех,
+        кто на него подписан и не появляется в ленте тех, кто не подписан.
+        """
+        follow_obj = Follow.objects.create(
+            author=self.author,
+            user=self.follower
+        )
+        post = Post.objects.create(
+            author=self.author,
+            text="Лайк подписка репост"
+        )
+        response_before = self.authorized_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertIn(post, response_before.context['page_obj'].object_list)
+        follow_obj.delete()
+        response_after = self.authorized_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertNotIn(post, response_after.context['page_obj'].object_list)
